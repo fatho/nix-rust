@@ -16,12 +16,16 @@ let
     buildPhase = ''
       mkdir -p target/nix/lib
 
+      echo "Building library"
+
       rustc \
         --crate-type rlib \
         --edition ${edition} \
         --crate-name ${name} \
         --out-dir target/nix/lib \
         src/lib.rs
+
+      echo "Building tests"
 
       rustc \
         --edition ${edition} \
@@ -30,11 +34,31 @@ let
         --test \
         src/lib.rs
 
-      for ex in examples/*.rs; do
+      echo "Building binaries"
+
+      for bin in src/bin/*.rs; do
+        local binname
+        binname=$(basename -s .rs $bin)
+        echo "> $binname"
         rustc \
           --crate-type bin \
           --edition ${edition} \
-          --crate-name $(basename -s .rs $ex) \
+          --crate-name $binname \
+          --out-dir target/nix/bin \
+          --extern ${name}=./target/nix/lib/lib${name}.rlib \
+          $bin
+      done
+
+      echo "Building examples"
+
+      for ex in examples/*.rs; do
+        local exname
+        exname=$(basename -s .rs $ex)
+        echo "> $exname"
+        rustc \
+          --crate-type bin \
+          --edition ${edition} \
+          --crate-name $exname \
           --out-dir target/nix/examples \
           --extern ${name}=./target/nix/lib/lib${name}.rlib \
           $ex
