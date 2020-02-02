@@ -4,11 +4,12 @@ let
     name,
     version,
     src,
+    doCheck ? true,
     edition ? "2018",
   }: stdenv.mkDerivation {
-    inherit name version src;
+    inherit name version src doCheck;
 
-    phases = [ "unpackPhase" "buildPhase" "installPhase" ];
+    phases = [ "unpackPhase" "buildPhase" "checkPhase" "installPhase" ];
 
     nativeBuildInputs = [rustc];
 
@@ -22,6 +23,13 @@ let
         --out-dir target/nix/lib \
         src/lib.rs
 
+      rustc \
+        --edition ${edition} \
+        --crate-name ${name} \
+        --out-dir target/nix/test \
+        --test \
+        src/lib.rs
+
       for ex in examples/*.rs; do
         rustc \
           --crate-type bin \
@@ -33,9 +41,16 @@ let
       done
     '';
 
+    checkPhase = ''
+      for test in target/nix/test/*; do
+        echo "Running test $test"
+        $test
+      done
+    '';
+
     installPhase = ''
       mkdir -p $out
-      for type in lib examples bin; do
+      for type in lib examples bin test; do
         if [[ -d target/nix/$type ]]; then
           mv target/nix/$type $out/$type
         fi
